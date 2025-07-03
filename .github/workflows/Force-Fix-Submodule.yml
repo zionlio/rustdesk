@@ -11,52 +11,55 @@ jobs:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
         
-    # 确保Git配置正确
     - name: Configure Git
       run: |
         git config --global user.email "actions@github.com"
         git config --global user.name "GitHub Actions"
         
-    # 安全移除子模块引用（忽略错误）
-    - name: Remove submodule references
+    - name: Completely remove submodule artifacts
       run: |
-        # 尝试移除配置（忽略错误）
-        git config -f .gitmodules --remove-section submodule.libs/hbb_common || true
-        git config -f .git/config --remove-section submodule.libs/hbb_common || true
-        
-        # 强制删除缓存和物理文件
-        git rm --cached -f libs/hbb_common || true
+        # 1. 强制删除所有子模块痕迹
+        git submodule deinit -f libs/hbb_common || true
+        git rm -f --cached libs/hbb_common || true
         rm -rf .git/modules/libs/hbb_common || true
-        rm -rf libs/hbb_common || true
         
-        # 提交可能存在的.gitmodules变更
-        if [ -f .gitmodules ]; then
-          git add .gitmodules
-          git commit -m "Remove submodule configuration" || echo "No submodule config changes"
+        # 2. 完全删除目录（使用sudo提升权限）
+        sudo rm -rf libs/hbb_common || true
+        
+        # 3. 创建临时锁定文件防止残留
+        mkdir -p libs
+        touch libs/.lockfile
+        
+        # 4. 提交删除操作
+        git add .gitmodules libs || true
+        git commit -m "Remove submodule artifacts" || echo "No commit needed"
+        
+    - name: Re-add submodule with fresh clone
+      run: |
+        # 1. 确保目录不存在
+        if [ -d "libs/hbb_common" ]; then
+          echo "Error: Directory still exists after removal!"
+          ls -la libs
+          exit 1
         fi
         
-    # 重新添加子模块
-    - name: Re-add submodule correctly
+        # 2. 创建父目录
+        mkdir -p libs
+        
+        # 3. 克隆到临时位置
+        git clone https://github.com/zionlio/hbb_common.git libs/hbb_common-temp
+        
+        # 4. 移动并删除.git文件夹
+        mv libs/hbb_common-temp libs/hbb_common
+        rm -rf libs/hbb_common/.git
+        
+    - name: Add as regular directory (not submodule)
       run: |
-        # 确保目录存在
-        mkdir -p libs/hbb_common
+        # 1. 添加到Git
+        git add libs/hbb_common
         
-        # 重新添加子模块
-        git submodule add --force https://github.com/zionlio/hbb_common.git libs/hbb_common
+        # 2. 提交更改
+        git commit -m "Add hbb_common as regular directory" || echo "No changes"
         
-        # 初始化和更新
-        git submodule update --init --force
-        
-        # 检查状态
-        git submodule status
-        
-    # 提交最终更改
-    - name: Commit and push
-      run: |
-        git add .
-        if git diff --cached --quiet; then
-          echo "No changes to commit"
-        else
-          git commit -m "Fix submodule reference"
-          git push origin HEAD:${{ github.ref }}
-        fi
+        # 3. 推送
+        git push origin HEAD:${{ github.ref }}
