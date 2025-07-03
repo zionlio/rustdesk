@@ -9,8 +9,8 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-        token: ${{ secrets.GITHUB_TOKEN }}
-        fetch-depth: 0  # 获取完整历史
+        token: ${{ secrets.GITHUB_TOKEN }}  # ✅ 保持这样写
+        fetch-depth: 0
 
     - name: Configure Git
       run: |
@@ -22,17 +22,16 @@ jobs:
         git submodule deinit -f libs/hbb_common
         git rm --cached libs/hbb_common
         rm -rf .git/modules/libs/hbb_common
-        
-        # 重新添加子模块
-        git submodule add --force https://github.com/您的用户名/hbb_common.git libs/hbb_common
+        git submodule add --force https://github.com/zionlio/hbb_common.git libs/hbb_common
         git submodule update --init --remote --force libs/hbb_common
 
-    - name: Commit changes
+    - name: Commit and push changes
       run: |
         git add .
         if git diff-index --quiet HEAD --; then
           echo "No changes to commit"
         else
           git commit -m "Reset submodule to new fork"
-          git push origin HEAD:${{ github.ref }}
+          # 关键修复：使用正确的引用格式
+          git push origin HEAD:refs/heads/${{ github.ref_name }}
         fi
