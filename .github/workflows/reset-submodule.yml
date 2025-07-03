@@ -1,21 +1,38 @@
 name: Reset Submodule
 on: [workflow_dispatch]
+permissions:
+  contents: write
 jobs:
   reset-submodule:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
       with:
-        submodules: recursive
-    - name: Reset hbb_common
+        submodules: true
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0  # 获取完整历史
+
+    - name: Configure Git
+      run: |
+        git config --global user.email "actions@github.com"
+        git config --global user.name "GitHub Actions"
+        
+    - name: Reset Submodule
       run: |
         git submodule deinit -f libs/hbb_common
+        git rm --cached libs/hbb_common
         rm -rf .git/modules/libs/hbb_common
+        
+        # 重新添加子模块
+        git submodule add --force https://github.com/您的用户名/hbb_common.git libs/hbb_common
         git submodule update --init --remote --force libs/hbb_common
+
     - name: Commit changes
       run: |
-        git config user.name "GitHub Actions"
-        git config user.email "actions@github.com"
         git add .
-        git commit -m "Reset submodule to new fork" || echo "No changes to commit"
-        git push
+        if git diff-index --quiet HEAD --; then
+          echo "No changes to commit"
+        else
+          git commit -m "Reset submodule to new fork"
+          git push origin HEAD:${{ github.ref }}
+        fi
