@@ -9,7 +9,7 @@ jobs:
     - uses: actions/checkout@v4
       with:
         submodules: true
-        token: ${{ secrets.GITHUB_TOKEN }}  # ✅ 保持这样写
+        token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
     - name: Configure Git
@@ -19,9 +19,19 @@ jobs:
         
     - name: Reset Submodule
       run: |
-        git submodule deinit -f libs/hbb_common
-        git rm --cached libs/hbb_common
+        # 1. 解除现有子模块注册
+        git submodule deinit -f libs/hbb_common || true
+        git rm --cached libs/hbb_common || true
+        
+        # 2. 彻底删除所有相关文件
         rm -rf .git/modules/libs/hbb_common
+        rm -rf libs/hbb_common
+        
+        # 3. 创建空目录并等待
+        mkdir -p libs/hbb_common
+        sleep 1  # 确保文件系统更新
+        
+        # 4. 重新添加子模块
         git submodule add --force https://github.com/zionlio/hbb_common.git libs/hbb_common
         git submodule update --init --remote --force libs/hbb_common
 
@@ -32,6 +42,5 @@ jobs:
           echo "No changes to commit"
         else
           git commit -m "Reset submodule to new fork"
-          # 关键修复：使用正确的引用格式
-          git push origin HEAD:refs/heads/${{ github.ref_name }}
+          git push origin HEAD:${{ github.ref }}
         fi
