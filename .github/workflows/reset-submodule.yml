@@ -1,46 +1,52 @@
-name: Reset Submodule
+name: Fix Submodule Reference
 on: [workflow_dispatch]
 permissions:
   contents: write
 jobs:
-  reset-submodule:
+  fix-submodule:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout repository
+      uses: actions/checkout@v4
       with:
-        submodules: true
+        submodules: false
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
-    - name: Configure Git
+    - name: Remove submodule completely
       run: |
-        git config --global user.email "actions@github.com"
-        git config --global user.name "GitHub Actions"
+        # 删除所有子模块相关配置
+        git config -f .gitmodules --remove-section submodule.libs/hbb_common
+        git config -f .git/config --remove-section submodule.libs/hbb_common
         
-    - name: Reset Submodule
-      run: |
-        # 1. 解除现有子模块注册
-        git submodule deinit -f libs/hbb_common || true
-        git rm --cached libs/hbb_common || true
-        
-        # 2. 彻底删除所有相关文件
+        # 删除所有物理文件
         rm -rf .git/modules/libs/hbb_common
+        git rm --cached -f libs/hbb_common
         rm -rf libs/hbb_common
         
-        # 3. 创建空目录并等待
-        mkdir -p libs/hbb_common
-        sleep 1  # 确保文件系统更新
-        
-        # 4. 重新添加子模块
-        git submodule add --force https://github.com/zionlio/hbb_common.git libs/hbb_common
-        git submodule update --init --remote --force libs/hbb_common
+        # 提交删除操作
+        git add .gitmodules
+        git commit -m "Remove broken submodule reference" || echo "No commit needed"
 
-    - name: Commit and push changes
+    - name: Re-add submodule correctly
+      run: |
+        # 重新添加子模块（指定分支）
+        git submodule add --force -b main https://github.com/zionlio/hbb_common.git libs/hbb_common
+        
+        # 初始化并更新
+        git submodule update --init --remote --force
+        
+        # 检查是否正确链接
+        cd libs/hbb_common
+        git remote -v
+        git log -1 --oneline
+
+    - name: Commit final fix
       run: |
         git add .
         if git diff-index --quiet HEAD --; then
           echo "No changes to commit"
         else
-          git commit -m "Reset submodule to new fork"
+          git commit -m "Fix submodule reference to new fork"
           git push origin HEAD:${{ github.ref }}
         fi
