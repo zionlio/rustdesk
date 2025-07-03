@@ -1,0 +1,46 @@
+name: Force Fix Submodule
+on: [workflow_dispatch]
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+        
+    - name: Remove submodule references
+      run: |
+        # 删除所有子模块配置
+        git config -f .gitmodules --remove-section submodule.libs/hbb_common || true
+        git config -f .git/config --remove-section submodule.libs/hbb_common || true
+        rm -rf .git/modules/libs/hbb_common
+        
+        # 从索引中移除
+        git rm --cached libs/hbb_common || true
+        
+        # 提交更改
+        git add .gitmodules
+        git commit -m "Remove broken submodule" || echo "No changes"
+        
+    - name: Re-add submodule correctly
+      run: |
+        # 删除残留目录
+        rm -rf libs/hbb_common
+        
+        # 重新添加子模块
+        git submodule add --force https://github.com/zionlio/hbb_common.git libs/hbb_common
+        cd libs/hbb_common
+        git checkout main  # 确保在正确分支
+        cd ../..
+        
+        # 更新子模块
+        git submodule update --init --force
+        
+    - name: Commit and push
+      run: |
+        git add .
+        git commit -m "Fix submodule reference" || echo "No changes"
+        git push origin HEAD:${{ github.ref }}
