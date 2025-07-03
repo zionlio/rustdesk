@@ -22,3 +22,14 @@ jobs:
     uses: ./.github/workflows/flutter-build.yml
     with:
       upload-artifact: true
+      
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+  deployments: write
+  packages: write
+  releases: write
+  actions: write
+  checks: write
+  security-events: write
