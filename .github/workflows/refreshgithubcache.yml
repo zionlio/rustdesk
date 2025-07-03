@@ -1,7 +1,16 @@
-- name: Refresh GitHub cache
+- name: Nuclear option - Recreate repo
   run: |
-    # 创建虚拟文件强制更新引用
-    date > .github/timestamp.txt
-    git add .github/timestamp.txt
-    git commit -m "Force refresh $(date)" || echo "No changes"
-    git push origin HEAD:${{ github.ref }}
+    # 1. 创建新仓库
+    gh repo create zionlio/rustdesk-fixed --public --clone
+    
+    # 2. 迁移所有内容（排除子模块）
+    cd rustdesk-fixed
+    git remote add old https://github.com/zionlio/rustdesk
+    git fetch old
+    git merge old/main --allow-unrelated-histories
+    
+    # 3. 重新添加子模块
+    git submodule add https://github.com/zionlio/hbb_common.git libs/hbb_common
+    
+    # 4. 推送到新仓库
+    git push -u origin main
