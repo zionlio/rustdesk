@@ -1,4 +1,4 @@
-- name: Nuclear option - Recreate repo
+- name: NuclearoptionRecreaterepo
   run: |
     # 1. 创建新仓库
     gh repo create zionlio/rustdesk-fixed --public --clone
