@@ -1,3 +1,4 @@
+```yaml
 name: Reset Submodule
 on: [workflow_dispatch]
 jobs:
