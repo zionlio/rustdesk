@@ -1,0 +1,7 @@
+- name: Refresh GitHub cache
+  run: |
+    # 创建虚拟文件强制更新引用
+    date > .github/timestamp.txt
+    git add .github/timestamp.txt
+    git commit -m "Force refresh $(date)" || echo "No changes"
+    git push origin HEAD:${{ github.ref }}
